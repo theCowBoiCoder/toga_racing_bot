@@ -1,0 +1,7 @@
+services:
+  iracing-bot:
+    build: .
+    container_name: iracing-discord-bot
+    restart: unless-stopped
+    env_file:
+      - .env
