@@ -18,6 +18,9 @@ const track = require('./commands/track');
 const compare = require('./commands/compare');
 const randomrace = require('./commands/randomrace');
 const streak = require('./commands/streak');
+const link = require('./commands/link');
+const unlink = require('./commands/unlink');
+const buildMyCommands = require('./commands/my');
 const buildShortcutCommands = require('./commands/shortcuts');
 
 const { DISCORD_TOKEN, DISCORD_CLIENT_ID, DISCORD_GUILD_ID } = process.env;
@@ -45,6 +48,9 @@ const commands = [
   compare.data.toJSON(),
   randomrace.data.toJSON(),
   streak.data.toJSON(),
+  link.data.toJSON(),
+  unlink.data.toJSON(),
+  ...buildMyCommands().map((cmd) => cmd.data.toJSON()),
   ...buildShortcutCommands().map((cmd) => cmd.data.toJSON()),
 ];
 

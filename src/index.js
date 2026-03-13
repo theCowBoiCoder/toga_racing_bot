@@ -21,6 +21,9 @@ const track = require('./commands/track');
 const compare = require('./commands/compare');
 const randomrace = require('./commands/randomrace');
 const streak = require('./commands/streak');
+const link = require('./commands/link');
+const unlink = require('./commands/unlink');
+const buildMyCommands = require('./commands/my');
 const buildShortcutCommands = require('./commands/shortcuts');
 const Automation = require('./automation');
 
@@ -71,6 +74,18 @@ const coreCommands = [
   randomrace, streak,
 ];
 for (const cmd of coreCommands) {
+  client.commands.set(cmd.data.name, cmd);
+}
+
+// Account linking commands
+const accountCommands = [link, unlink];
+for (const cmd of accountCommands) {
+  client.commands.set(cmd.data.name, cmd);
+}
+
+// "My" commands (/mystats, /myrecent, etc.)
+const myCommands = buildMyCommands();
+for (const cmd of myCommands) {
   client.commands.set(cmd.data.name, cmd);
 }
 
