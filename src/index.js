@@ -8,7 +8,21 @@ const IracingAPI = require('./iracing/api');
 const schedule = require('./commands/schedule');
 const series = require('./commands/series');
 const upcoming = require('./commands/upcoming');
+const driver = require('./commands/driver');
+const irating = require('./commands/irating');
+const recentraces = require('./commands/recentraces');
+const standings = require('./commands/standings');
+const sof = require('./commands/sof');
+const participation = require('./commands/participation');
+const splits = require('./commands/splits');
+const license = require('./commands/license');
+const incidents = require('./commands/incidents');
+const track = require('./commands/track');
+const compare = require('./commands/compare');
+const randomrace = require('./commands/randomrace');
+const streak = require('./commands/streak');
 const buildShortcutCommands = require('./commands/shortcuts');
+const Automation = require('./automation');
 
 // ─── Validate Env ─────────────────────────────────────────────
 const required = [
@@ -49,7 +63,13 @@ client.iracingAPI = iracingAPI;
 client.commands = new Collection();
 
 // Core commands
-const coreCommands = [schedule, series, upcoming];
+const coreCommands = [
+  schedule, series, upcoming,
+  driver, irating, recentraces, standings,
+  sof, participation, splits,
+  license, incidents, track, compare,
+  randomrace, streak,
+];
 for (const cmd of coreCommands) {
   client.commands.set(cmd.data.name, cmd);
 }
@@ -65,6 +85,10 @@ client.once(Events.ClientReady, (readyClient) => {
   console.log(`✅ Bot online as ${readyClient.user.tag}`);
   console.log(`📊 Serving ${readyClient.guilds.cache.size} server(s)`);
   console.log(`🏁 ${client.commands.size} commands loaded`);
+
+  // Start automation (race alerts, weekly posts, special events)
+  const automation = new Automation(client);
+  automation.start();
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {

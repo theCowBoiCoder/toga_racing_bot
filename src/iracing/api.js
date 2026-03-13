@@ -135,6 +135,87 @@ class IracingAPI {
     return this.request(`/data/season/get?season_id=${seasonId}`);
   }
 
+  // ─── Member / Driver Endpoints ──────────────────────────────
+
+  /**
+   * Search for members by name.
+   */
+  async searchDrivers(searchTerm) {
+    return this.request(`/data/lookup/drivers?search_term=${encodeURIComponent(searchTerm)}&league_id=0`);
+  }
+
+  /**
+   * Get member profile info by cust_id.
+   */
+  async getMemberProfile(custId) {
+    return this.request(`/data/member/profile?cust_id=${custId}`);
+  }
+
+  /**
+   * Get member info (iRating, SR, license, etc.).
+   */
+  async getMemberInfo(custIds) {
+    const ids = Array.isArray(custIds) ? custIds.join(',') : custIds;
+    return this.request(`/data/member/get?cust_ids=${ids}`);
+  }
+
+  /**
+   * Get iRating / SR chart data for a member.
+   * category_id: 1=Oval, 2=Road, 3=Dirt Oval, 4=Dirt Road, 5=Sports Car, 6=Formula Car
+   * chart_type: 1=iRating, 2=TT Rating, 3=License/SR
+   */
+  async getMemberChartData(custId, categoryId = 2, chartType = 1) {
+    return this.request(`/data/member/chart_data?cust_id=${custId}&category_id=${categoryId}&chart_type=${chartType}`);
+  }
+
+  /**
+   * Get recent races for a member.
+   */
+  async getMemberRecentRaces(custId) {
+    return this.request(`/data/stats/member_recent_races?cust_id=${custId}`);
+  }
+
+  /**
+   * Get member career stats.
+   */
+  async getMemberCareerStats(custId) {
+    return this.request(`/data/stats/member_career?cust_id=${custId}`);
+  }
+
+  /**
+   * Get member yearly stats.
+   */
+  async getMemberYearlyStats(custId) {
+    return this.request(`/data/stats/member_yearly?cust_id=${custId}`);
+  }
+
+  // ─── Season / Standings ─────────────────────────────────────
+
+  /**
+   * Get season standings.
+   */
+  async getSeasonStandings(seasonId, carClassId = null) {
+    let path = `/data/season/standings?season_id=${seasonId}`;
+    if (carClassId) path += `&car_class_id=${carClassId}`;
+    return this.request(path);
+  }
+
+  /**
+   * Get season results (subsession list).
+   */
+  async getSeasonResults(seasonId, raceWeekNum = null) {
+    let path = `/data/season/results?season_id=${seasonId}`;
+    if (raceWeekNum != null) path += `&race_week_num=${raceWeekNum}`;
+    return this.request(path);
+  }
+
+  /**
+   * Get subsession result details.
+   */
+  async getSubsessionResult(subsessionId) {
+    return this.request(`/data/results/get?subsession_id=${subsessionId}`);
+  }
+
   // ─── Helper Methods ─────────────────────────────────────────
 
   /**
