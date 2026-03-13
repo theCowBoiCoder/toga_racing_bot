@@ -60,26 +60,32 @@ IRACING_CLIENT_SECRET=your_iracing_oauth_client_secret
 
 ### 4. Install & Run
 
-**Local:**
-
 ```bash
 npm install
-npm run deploy   # Register slash commands with Discord
+npm run deploy   # Register slash commands with Discord (one-time)
 npm start        # Start the bot
 ```
 
-**Docker:**
+### 5. Deploy with PM2
 
 ```bash
-# Register commands first (run locally or in container)
 npm install
-npm run deploy
-
-# Then run with Docker
-docker compose up -d
+npm run deploy          # Register slash commands (one-time)
+pm2 start ecosystem.config.js
+pm2 save                # Save process list for auto-restart on reboot
+pm2 startup             # Enable PM2 to start on boot
 ```
 
-### 5. Register Commands
+Useful PM2 commands:
+
+```bash
+pm2 logs iracing-bot    # View logs
+pm2 restart iracing-bot # Restart
+pm2 stop iracing-bot    # Stop
+pm2 status              # Check status
+```
+
+### 6. Register Commands
 
 You only need to do this once (or when adding new commands):
 
@@ -90,10 +96,12 @@ npm run deploy
 If `DISCORD_GUILD_ID` is set, commands register instantly to that server.
 If not set, commands register globally (takes up to 1 hour).
 
-## Development
+### Updating
 
 ```bash
-npm run dev   # Starts with --watch for auto-restart on changes
+git pull
+npm install
+pm2 restart iracing-bot
 ```
 
 ## Architecture
