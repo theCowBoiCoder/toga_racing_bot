@@ -216,6 +216,25 @@ class IracingAPI {
     return this.request(`/data/results/get?subsession_id=${subsessionId}`);
   }
 
+  /**
+   * Get lap data for a subsession.
+   */
+  async getLapData(subsessionId, custId = null) {
+    let path = `/data/results/lap_data?subsession_id=${subsessionId}`;
+    if (custId) path += `&cust_id=${custId}`;
+    return this.request(path);
+  }
+
+  /**
+   * Get recent races for a member (uncached for polling).
+   */
+  async getMemberRecentRacesLive(custId) {
+    const token = await this.auth.getToken();
+    const meta = await this._get(`${API_BASE}/data/stats/member_recent_races?cust_id=${custId}`, token);
+    if (meta.link) return this._get(meta.link, null);
+    return meta;
+  }
+
   // ─── Helper Methods ─────────────────────────────────────────
 
   /**

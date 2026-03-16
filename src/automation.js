@@ -1,6 +1,7 @@
 const { EmbedBuilder } = require('discord.js');
-const { dateWithCountdown, relativeCountdown } = require('./utils/time');
+const { dateWithCountdown, relativeCountdown, discordTimestamp } = require('./utils/time');
 const { buildScheduleEmbed } = require('./utils/embeds');
+const store = require('./store');
 
 // Special events to watch for (can be extended)
 const SPECIAL_EVENTS = [
@@ -20,6 +21,7 @@ class Automation {
     this.client = client;
     this.alertChannelId = process.env.ALERT_CHANNEL_ID || null;
     this.scheduleChannelId = process.env.SCHEDULE_CHANNEL_ID || null;
+    this.reportChannelId = process.env.RACE_REPORT_CHANNEL_ID || this.alertChannelId;
     this.intervals = [];
   }
 
@@ -59,6 +61,16 @@ class Automation {
       // Also run once on startup after a delay
       setTimeout(() => this.checkSpecialEvents(), 30 * 1000);
       console.log(`[Automation] Special event alerts enabled`);
+    }
+
+    // Auto race reports for linked members every 3 minutes
+    if (this.reportChannelId) {
+      this.intervals.push(
+        setInterval(() => this.checkRaceReports(), 3 * 60 * 1000)
+      );
+      // Initial check after 60s to let things settle
+      setTimeout(() => this.checkRaceReports(), 60 * 1000);
+      console.log(`[Automation] Auto race reports enabled → channel ${this.reportChannelId}`);
     }
   }
 
@@ -198,6 +210,154 @@ class Automation {
     } catch (error) {
       console.error('[Automation] Special events error:', error.message);
     }
+  }
+  /**
+   * Poll linked members for new race results and auto-post reports.
+   */
+  async checkRaceReports() {
+    try {
+      const allLinks = store.getAllLinks();
+      const entries = Object.entries(allLinks);
+      if (entries.length === 0) return;
+
+      const api = this.client.iracingAPI;
+      const channel = await this.client.channels.fetch(this.reportChannelId).catch(() => null);
+      if (!channel) return;
+
+      for (const [discordUserId, { cust_id: custId, display_name: displayName }] of entries) {
+        try {
+          const recentData = await api.getMemberRecentRacesLive(custId);
+          const races = recentData?.races || recentData || [];
+          if (!Array.isArray(races) || races.length === 0) continue;
+
+          // Check the most recent race
+          const latest = races[0];
+          const subsessionId = latest.subsession_id;
+          if (!subsessionId) continue;
+
+          // Already reported?
+          if (store.isRaceReported(custId, subsessionId)) continue;
+
+          // Mark immediately to avoid duplicates
+          store.markRaceReported(custId, subsessionId);
+
+          // Build the report
+          const embed = this.buildRaceReportEmbed(latest, displayName, discordUserId);
+          await channel.send({ embeds: [embed] });
+
+          console.log(`[Automation] Posted race report for ${displayName} (subsession ${subsessionId})`);
+        } catch (err) {
+          console.error(`[Automation] Race report error for ${displayName}:`, err.message);
+        }
+      }
+    } catch (error) {
+      console.error('[Automation] Race reports poll error:', error.message);
+    }
+  }
+
+  /**
+   * Build a race report embed from recent race data.
+   */
+  buildRaceReportEmbed(race, displayName, discordUserId) {
+    const finishPos = race.finish_position != null ? race.finish_position + 1 : '?';
+    const startPos = race.start_position != null ? race.start_position + 1 : '?';
+    const incidents = race.incidents ?? '?';
+    const sof = race.strength_of_field ?? '?';
+    const seriesName = race.series_name || 'Unknown Series';
+    const trackName = race.track?.track_name || race.track_name || 'Unknown Track';
+    const lapsComplete = race.laps_complete || 0;
+    const lapsLed = race.laps_led || 0;
+
+    // Position emoji
+    let posEmoji;
+    if (finishPos === 1) posEmoji = '🥇';
+    else if (finishPos === 2) posEmoji = '🥈';
+    else if (finishPos === 3) posEmoji = '🥉';
+    else posEmoji = `P${finishPos}`;
+
+    // iRating change
+    let irChange = '';
+    let irEmoji = '';
+    if (race.newi_rating != null && race.oldi_rating != null) {
+      const diff = race.newi_rating - race.oldi_rating;
+      irChange = diff >= 0 ? `+${diff}` : `${diff}`;
+      irEmoji = diff >= 0 ? '📈' : '📉';
+    }
+
+    // SR change
+    let srChange = '';
+    if (race.new_sub_level != null && race.old_sub_level != null) {
+      const oldSR = (race.old_sub_level / 100).toFixed(2);
+      const newSR = (race.new_sub_level / 100).toFixed(2);
+      const diff = (race.new_sub_level - race.old_sub_level) / 100;
+      const diffStr = diff >= 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2);
+      srChange = `${oldSR} → ${newSR} (${diffStr})`;
+    }
+
+    // Positions gained/lost
+    let posChange = '';
+    if (typeof startPos === 'number' && typeof finishPos === 'number') {
+      const diff = startPos - finishPos;
+      if (diff > 0) posChange = `⬆️ Gained ${diff} position${diff > 1 ? 's' : ''}`;
+      else if (diff < 0) posChange = `⬇️ Lost ${Math.abs(diff)} position${Math.abs(diff) > 1 ? 's' : ''}`;
+      else posChange = '➡️ Held position';
+    }
+
+    // Color based on result
+    let color = 0x95a5a6; // grey
+    if (finishPos === 1) color = 0xffd700; // gold
+    else if (finishPos <= 3) color = 0x2ecc71; // green
+    else if (finishPos <= 5) color = 0x3498db; // blue
+    else if (finishPos <= 10) color = 0xf39c12; // orange
+
+    const embed = new EmbedBuilder()
+      .setTitle(`🏁 Race Report — ${displayName}`)
+      .setColor(color)
+      .setTimestamp();
+
+    // Tag the user
+    embed.setDescription(`<@${discordUserId}> just finished a race!`);
+
+    embed.addFields(
+      { name: 'Series', value: seriesName, inline: true },
+      { name: 'Track', value: trackName, inline: true },
+      { name: '\u200B', value: '\u200B', inline: true }, // spacer
+    );
+
+    embed.addFields(
+      { name: 'Finish', value: `${posEmoji}`, inline: true },
+      { name: 'Started', value: `P${startPos}`, inline: true },
+      { name: 'Movement', value: posChange || '—', inline: true },
+    );
+
+    if (irChange) {
+      embed.addFields(
+        { name: `iRating ${irEmoji}`, value: `**${race.newi_rating}** (${irChange})`, inline: true },
+      );
+    }
+
+    if (srChange) {
+      embed.addFields(
+        { name: 'Safety Rating', value: srChange, inline: true },
+      );
+    }
+
+    embed.addFields(
+      { name: 'Incidents', value: `${incidents}x`, inline: true },
+    );
+
+    embed.addFields(
+      { name: 'SOF', value: typeof sof === 'number' ? sof.toLocaleString() : `${sof}`, inline: true },
+      { name: 'Laps', value: `${lapsComplete} completed${lapsLed > 0 ? ` • ${lapsLed} led` : ''}`, inline: true },
+    );
+
+    if (race.session_start_time) {
+      embed.addFields(
+        { name: 'Race Time', value: discordTimestamp(race.session_start_time, 'f'), inline: true },
+      );
+    }
+
+    return embed;
   }
 }
 

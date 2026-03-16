@@ -18,6 +18,7 @@ const track = require('./commands/track');
 const compare = require('./commands/compare');
 const randomrace = require('./commands/randomrace');
 const streak = require('./commands/streak');
+const laptimes = require('./commands/laptimes');
 const link = require('./commands/link');
 const unlink = require('./commands/unlink');
 const buildMyCommands = require('./commands/my');
@@ -48,6 +49,7 @@ const commands = [
   compare.data.toJSON(),
   randomrace.data.toJSON(),
   streak.data.toJSON(),
+  laptimes.data.toJSON(),
   link.data.toJSON(),
   unlink.data.toJSON(),
   ...buildMyCommands().map((cmd) => cmd.data.toJSON()),

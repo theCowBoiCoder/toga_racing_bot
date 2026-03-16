@@ -21,6 +21,7 @@ const track = require('./commands/track');
 const compare = require('./commands/compare');
 const randomrace = require('./commands/randomrace');
 const streak = require('./commands/streak');
+const laptimes = require('./commands/laptimes');
 const link = require('./commands/link');
 const unlink = require('./commands/unlink');
 const buildMyCommands = require('./commands/my');
@@ -71,7 +72,7 @@ const coreCommands = [
   driver, irating, recentraces, standings,
   sof, participation, splits,
   license, incidents, track, compare,
-  randomrace, streak,
+  randomrace, streak, laptimes,
 ];
 for (const cmd of coreCommands) {
   client.commands.set(cmd.data.name, cmd);
