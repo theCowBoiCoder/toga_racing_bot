@@ -288,11 +288,20 @@ class IracingAPI {
 
   /**
    * Get all active seasons with their schedules, grouped by category.
+   * Normalizes field names (the API uses different names during Week 13).
    */
   async getFullSchedule() {
     const seasons = await this.getSeasons();
     if (!Array.isArray(seasons)) return [];
-    return seasons;
+
+    // Normalize field names: the API returns season_name/race_week during
+    // Week 13 instead of series_name/race_week_num
+    return seasons.map((s) => ({
+      ...s,
+      series_name: s.series_name || s.season_name || undefined,
+      series_short_name: s.series_short_name || s.season_short_name || undefined,
+      race_week_num: s.race_week_num ?? s.race_week ?? undefined,
+    }));
   }
 
   /**

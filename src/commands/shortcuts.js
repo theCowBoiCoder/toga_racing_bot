@@ -46,10 +46,9 @@ function buildShortcutCommands() {
         const seasons = await api.getFullSchedule();
 
         // Filter seasons matching any of the search terms
-        // Check series_name, season_name, and series_short_name (API uses different fields)
         const matched = seasons.filter((s) => {
-          const sName = (s.series_name || s.season_name || '').toLowerCase();
-          const sShort = (s.series_short_name || s.season_short_name || '').toLowerCase();
+          const sName = (s.series_name || '').toLowerCase();
+          const sShort = (s.series_short_name || '').toLowerCase();
           return search.some((term) => sName.includes(term) || sShort.includes(term));
         });
 
