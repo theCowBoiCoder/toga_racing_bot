@@ -19,9 +19,12 @@ module.exports = {
       const api = interaction.client.iracingAPI;
       const seriesFilter = interaction.options.getString('series');
 
-      const raceGuide = await api.getRaceGuide();
+      const [raceGuide, seriesMap] = await Promise.all([
+        api.getRaceGuide(),
+        api.getSeriesMap(),
+      ]);
 
-      // The race guide returns sessions — extract and sort by start time
+      // The race guide returns sessions — extract, enrich with series names, and sort
       let sessions = [];
 
       if (raceGuide && raceGuide.sessions) {
@@ -29,6 +32,16 @@ module.exports = {
       } else if (Array.isArray(raceGuide)) {
         sessions = raceGuide;
       }
+
+      // Race guide only has series_id — resolve names from series list
+      sessions = sessions.map((s) => {
+        const info = seriesMap.get(s.series_id);
+        return {
+          ...s,
+          series_name: s.series_name || info?.series_name || 'Unknown Series',
+          series_short_name: s.series_short_name || info?.series_short_name || '',
+        };
+      });
 
       // Filter to only future sessions
       const now = new Date();
