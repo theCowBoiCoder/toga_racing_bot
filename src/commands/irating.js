@@ -123,6 +123,7 @@ module.exports = {
         .setTimestamp();
 
       let hasData = false;
+      const categoryLines = [];
 
       for (let i = 0; i < catEntries.length; i++) {
         const cat = catEntries[i];
@@ -141,7 +142,7 @@ module.exports = {
         const firstIR = first.value || first[1] || 0;
         const change = currentIR - firstIR;
         const changeStr = change >= 0 ? `+${change}` : `${change}`;
-        const arrow = change >= 0 ? '📈' : '📉';
+        const arrow = change >= 0 ? '▲' : '▼';
 
         // Text sparkline
         const range = max - min || 1;
@@ -151,9 +152,37 @@ module.exports = {
           return ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'][level] || '▁';
         });
 
+        // Current iR + change on one line, sparkline on next
+        embed.addFields(
+          {
+            name: `${cat.emoji} ${cat.name}`,
+            value: `**${currentIR.toLocaleString()}** iR`,
+            inline: true,
+          },
+          {
+            name: 'Trend',
+            value: `${arrow} ${changeStr}`,
+            inline: true,
+          },
+          {
+            name: 'Range',
+            value: `${min.toLocaleString()} – ${max.toLocaleString()}`,
+            inline: true,
+          },
+        );
+
+        // Sparkline as a standalone row for visual clarity
+        categoryLines.push({ cat: cat.name, bars: bars.join(''), min, max });
+      }
+
+      // Add sparklines as a combined block at the bottom
+      if (categoryLines.length > 0) {
+        const sparklines = categoryLines
+          .map((c) => `**${c.cat}:** \`${c.bars}\``)
+          .join('\n');
         embed.addFields({
-          name: `${cat.emoji} ${cat.name}`,
-          value: `**${currentIR}** iR  ${arrow} ${changeStr}\n\`${bars.join('')}\`  (${min} — ${max})`,
+          name: '📊 Recent Trends',
+          value: sparklines,
           inline: false,
         });
       }
