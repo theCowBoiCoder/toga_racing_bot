@@ -19,9 +19,10 @@ module.exports = {
       const api = interaction.client.iracingAPI;
       const seriesFilter = interaction.options.getString('series');
 
-      const [raceGuide, seriesMap] = await Promise.all([
+      const [raceGuide, seriesMap, seasonMap] = await Promise.all([
         api.getRaceGuide(),
         api.getSeriesMap(),
+        api.getSeasonMap(),
       ]);
 
       // The race guide returns sessions — extract, enrich with series names, and sort
@@ -33,13 +34,20 @@ module.exports = {
         sessions = raceGuide;
       }
 
-      // Race guide only has series_id — resolve names from series list
+      // Race guide only has series_id — resolve names and tracks
       sessions = sessions.map((s) => {
         const info = seriesMap.get(s.series_id);
+        // Resolve track from season schedule
+        const season = seasonMap.get(s.season_id);
+        const sched = season?.schedules || season?.schedule || [];
+        const weekEntry = sched.find((w) => w.race_week_num === s.race_week_num);
+        const trackName = weekEntry?.track?.track_name;
+
         return {
           ...s,
           series_name: s.series_name || info?.series_name || 'Unknown Series',
           series_short_name: s.series_short_name || info?.series_short_name || '',
+          track_name: s.track?.track_name || s.track_name || trackName || 'TBD',
         };
       });
 

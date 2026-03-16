@@ -305,6 +305,22 @@ class IracingAPI {
   }
 
   /**
+   * Build a lookup map of seasons by season_id (includes schedule/track data).
+   */
+  async getSeasonMap() {
+    const cached = this.cache.get('_seasonMap');
+    if (cached) return cached;
+
+    const seasons = await this.getFullSchedule();
+    const map = new Map();
+    for (const s of seasons) {
+      map.set(s.season_id, s);
+    }
+    this.cache.set('_seasonMap', map);
+    return map;
+  }
+
+  /**
    * Find seasons matching a series name query.
    */
   async findSeasonsBySeriesName(query) {
