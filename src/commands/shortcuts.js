@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { buildScheduleEmbed, buildSeriesEmbed, buildPaginationRow } = require('../utils/embeds');
+const { buildScheduleEmbed, buildSeriesEmbed, buildUpcomingEmbed, buildPaginationRow } = require('../utils/embeds');
 
 /**
  * Shortcut definitions: command name -> search terms to match against series names.
@@ -54,10 +54,70 @@ function buildShortcutCommands() {
 
         matched.sort((a, b) => (a.series_name || '').localeCompare(b.series_name || ''));
 
+        // Week 13 / off-season fallback: if no season data, check the race guide
         if (matched.length === 0) {
-          await interaction.editReply({
-            content: `❌ No **${name}** series found in the current season.`,
+          const raceGuide = await api.getRaceGuide();
+          let sessions = raceGuide?.sessions || (Array.isArray(raceGuide) ? raceGuide : []);
+
+          const now = new Date();
+          sessions = sessions.filter((s) => {
+            const startTime = s.start_time || s.session_start_time;
+            if (!startTime || new Date(startTime) <= now) return false;
+            const sName = (s.series_name || '').toLowerCase();
+            const sShort = (s.series_short_name || '').toLowerCase();
+            return search.some((term) => sName.includes(term) || sShort.includes(term));
           });
+
+          sessions.sort((a, b) => {
+            const timeA = new Date(a.start_time || a.session_start_time);
+            const timeB = new Date(b.start_time || b.session_start_time);
+            return timeA - timeB;
+          });
+
+          sessions = sessions.slice(0, 50);
+
+          if (sessions.length === 0) {
+            await interaction.editReply({
+              content: `❌ No **${name}** series or upcoming races found. This may be Week 13 (off-season transition).`,
+            });
+            return;
+          }
+
+          // Show upcoming sessions from the race guide
+          const title = `${name} — Upcoming Races (Week 13)`;
+          const { embed, totalPages } = buildUpcomingEmbed(sessions, title, 0);
+          const row = buildPaginationRow(0, totalPages, cmd);
+
+          const replyOptions = { embeds: [embed] };
+          if (row) replyOptions.components = [row];
+
+          const message = await interaction.editReply(replyOptions);
+
+          if (totalPages > 1) {
+            const collector = message.createMessageComponentCollector({ time: 120_000 });
+
+            collector.on('collect', async (i) => {
+              if (i.user.id !== interaction.user.id) {
+                await i.reply({ content: 'These buttons are not for you.', ephemeral: true });
+                return;
+              }
+
+              let page = parseInt(i.customId.split('_').pop());
+              if (i.customId.includes('_next_')) page++;
+              else if (i.customId.includes('_prev_')) page--;
+
+              const { embed: newEmbed } = buildUpcomingEmbed(sessions, title, page);
+              const newRow = buildPaginationRow(page, totalPages, cmd);
+
+              const updateOptions = { embeds: [newEmbed] };
+              if (newRow) updateOptions.components = [newRow];
+              await i.update(updateOptions);
+            });
+
+            collector.on('end', () => {
+              interaction.editReply({ components: [] }).catch(() => {});
+            });
+          }
           return;
         }
 
