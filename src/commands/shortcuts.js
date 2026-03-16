@@ -46,9 +46,10 @@ function buildShortcutCommands() {
         const seasons = await api.getFullSchedule();
 
         // Filter seasons matching any of the search terms
+        // Check series_name, season_name, and series_short_name (API uses different fields)
         const matched = seasons.filter((s) => {
-          const sName = (s.series_name || '').toLowerCase();
-          const sShort = (s.series_short_name || '').toLowerCase();
+          const sName = (s.series_name || s.season_name || '').toLowerCase();
+          const sShort = (s.series_short_name || s.season_short_name || '').toLowerCase();
           return search.some((term) => sName.includes(term) || sShort.includes(term));
         });
 
@@ -56,17 +57,32 @@ function buildShortcutCommands() {
 
         // Week 13 / off-season fallback: if no season data, check the race guide
         if (matched.length === 0) {
-          const raceGuide = await api.getRaceGuide();
+          // Race guide sessions only have series_id, not names.
+          // Resolve names from the series list.
+          const [raceGuide, seriesMap] = await Promise.all([
+            api.getRaceGuide(),
+            api.getSeriesMap(),
+          ]);
           let sessions = raceGuide?.sessions || (Array.isArray(raceGuide) ? raceGuide : []);
 
           const now = new Date();
-          sessions = sessions.filter((s) => {
-            const startTime = s.start_time || s.session_start_time;
-            if (!startTime || new Date(startTime) <= now) return false;
-            const sName = (s.series_name || '').toLowerCase();
-            const sShort = (s.series_short_name || '').toLowerCase();
-            return search.some((term) => sName.includes(term) || sShort.includes(term));
-          });
+          sessions = sessions
+            .map((s) => {
+              // Enrich with series name from lookup
+              const info = seriesMap.get(s.series_id);
+              return {
+                ...s,
+                series_name: s.series_name || info?.series_name || 'Unknown Series',
+                series_short_name: s.series_short_name || info?.series_short_name || '',
+              };
+            })
+            .filter((s) => {
+              const startTime = s.start_time || s.session_start_time;
+              if (!startTime || new Date(startTime) <= now) return false;
+              const sName = (s.series_name || '').toLowerCase();
+              const sShort = (s.series_short_name || '').toLowerCase();
+              return search.some((term) => sName.includes(term) || sShort.includes(term));
+            });
 
           sessions.sort((a, b) => {
             const timeA = new Date(a.start_time || a.session_start_time);

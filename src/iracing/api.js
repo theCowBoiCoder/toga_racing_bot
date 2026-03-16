@@ -256,6 +256,24 @@ class IracingAPI {
   }
 
   /**
+   * Build a lookup map of series by series_id.
+   */
+  async getSeriesMap() {
+    const cached = this.cache.get('_seriesMap');
+    if (cached) return cached;
+
+    const series = await this.getSeries();
+    const map = new Map();
+    if (Array.isArray(series)) {
+      for (const s of series) {
+        map.set(s.series_id, s);
+      }
+    }
+    this.cache.set('_seriesMap', map);
+    return map;
+  }
+
+  /**
    * Search series by name (fuzzy, case-insensitive).
    */
   async searchSeries(query) {
