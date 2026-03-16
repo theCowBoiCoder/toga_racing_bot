@@ -58,29 +58,10 @@ function buildShortcutCommands() {
         if (matched.length === 0) {
           // Race guide sessions only have series_id, not names.
           // Resolve names from the series list.
-          const [raceGuide, seriesMap, seasonMap] = await Promise.all([
-            api.getRaceGuide(),
-            api.getSeriesMap(),
-            api.getSeasonMap(),
-          ]);
-          let sessions = raceGuide?.sessions || (Array.isArray(raceGuide) ? raceGuide : []);
+          let sessions = await api.getEnrichedRaceGuide();
 
           const now = new Date();
           sessions = sessions
-            .map((s) => {
-              // Enrich with series name and track from lookups
-              const info = seriesMap.get(s.series_id);
-              const season = seasonMap.get(s.season_id);
-              const sched = season?.schedules || season?.schedule || [];
-              const weekEntry = sched.find((w) => w.race_week_num === s.race_week_num);
-              const trackName = weekEntry?.track?.track_name;
-              return {
-                ...s,
-                series_name: s.series_name || info?.series_name || 'Unknown Series',
-                series_short_name: s.series_short_name || info?.series_short_name || '',
-                track_name: s.track?.track_name || s.track_name || trackName || 'TBD',
-              };
-            })
             .filter((s) => {
               const startTime = s.start_time || s.session_start_time;
               if (!startTime || new Date(startTime) <= now) return false;

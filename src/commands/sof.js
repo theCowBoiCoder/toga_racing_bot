@@ -16,8 +16,7 @@ module.exports = {
       const api = interaction.client.iracingAPI;
       const query = interaction.options.getString('series');
 
-      const raceGuide = await api.getRaceGuide();
-      let sessions = raceGuide?.sessions || raceGuide || [];
+      let sessions = await api.getEnrichedRaceGuide();
 
       // Filter by series name
       const q = query.toLowerCase();

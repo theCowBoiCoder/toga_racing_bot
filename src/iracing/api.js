@@ -321,6 +321,36 @@ class IracingAPI {
   }
 
   /**
+   * Get race guide sessions enriched with series names and track names.
+   * During Week 13 the race guide only has series_id — this resolves
+   * names from the series list and tracks from season schedule data.
+   */
+  async getEnrichedRaceGuide() {
+    const [raceGuide, seriesMap, seasonMap] = await Promise.all([
+      this.getRaceGuide(),
+      this.getSeriesMap(),
+      this.getSeasonMap(),
+    ]);
+
+    let sessions = raceGuide?.sessions || (Array.isArray(raceGuide) ? raceGuide : []);
+
+    return sessions.map((s) => {
+      const info = seriesMap.get(s.series_id);
+      const season = seasonMap.get(s.season_id);
+      const sched = season?.schedules || season?.schedule || [];
+      const weekEntry = sched.find((w) => w.race_week_num === s.race_week_num);
+      const trackName = weekEntry?.track?.track_name;
+
+      return {
+        ...s,
+        series_name: s.series_name || info?.series_name || 'Unknown Series',
+        series_short_name: s.series_short_name || info?.series_short_name || '',
+        track_name: s.track?.track_name || s.track_name || trackName || 'TBD',
+      };
+    });
+  }
+
+  /**
    * Find seasons matching a series name query.
    */
   async findSeasonsBySeriesName(query) {

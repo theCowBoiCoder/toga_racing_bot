@@ -61,10 +61,12 @@ function buildScheduleEmbed(seasons, title, page = 0, pageSize = 8) {
     .setFooter({ text: `Page ${page + 1}/${totalPages} • ${seasons.length} series` });
 
   for (const season of pageSeasons) {
-    const trackName = season.schedule?.[0]?.track?.track_name
+    const sched = season.schedules || season.schedule || [];
+    const weekNum = season.race_week_num != null ? season.race_week_num + 1 : '?';
+    const weekEntry = sched.find((w) => w.race_week_num === season.race_week_num) || sched[0];
+    const trackName = weekEntry?.track?.track_name
       || season.track_name
       || 'TBD';
-    const weekNum = season.race_week_num != null ? season.race_week_num + 1 : '?';
     const license = licenseEmoji(season.license_group);
 
     embed.addFields({

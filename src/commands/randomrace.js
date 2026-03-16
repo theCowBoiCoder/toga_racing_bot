@@ -21,7 +21,9 @@ module.exports = {
       // Pick a random season
       const random = seasons[Math.floor(Math.random() * seasons.length)];
 
-      const trackName = random.schedule?.[0]?.track?.track_name
+      const sched = random.schedules || random.schedule || [];
+      const weekEntry = sched.find((w) => w.race_week_num === random.race_week_num) || sched[0];
+      const trackName = weekEntry?.track?.track_name
         || random.track_name
         || 'TBD';
       const weekNum = random.race_week_num != null ? random.race_week_num + 1 : '?';
